@@ -1,0 +1,91 @@
+version: '3.5'
+services:
+  web:
+    image: nginx:1.19
+    container_name: ${PROJECT_NAME}_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./www/trainings:/var/www/html
+      - ./.docker/nginx/nginx.conf:/etc/nginx/conf.d/oro.template:ro
+    environment:
+#      - RABBITMQ_DEFAULT_USER=guest
+#      - RABBITMQ_DEFAULT_PASS=guest
+      - PROJECT_NAME=${PROJECT_NAME}
+    command: /bin/bash -c "envsubst '$$PROJECT_NAME' < /etc/nginx/conf.d/oro.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"
+    depends_on:
+      - db
+#      - rabbitmq
+    networks:
+      custom_network: {}
+
+  php:
+    build: ./.docker/php81
+    ports:
+      - "9000:9000"
+    working_dir: /var/www/html
+    container_name: ${PROJECT_NAME}_php
+    volumes:
+      - ./www/trainings:/var/www/html
+      - ./.docker/php81/php.ini/:/usr/local/etc/php/conf.d/php-local.ini
+      - ./.docker/php81/xdebug.ini/:/usr/local/etc/php/conf.d/xdebug-local.ini
+    environment:
+      - PHP_IDE_CONFIG="serverName=${PROJECT_NAME}.local"
+      - COMPOSER_MEMORY_LIMIT= -1
+      - PROJECT_NAME=${PROJECT_NAME}
+    networks:
+      custom_network: {}
+
+  db:
+    image: mysql:8.0
+    container_name: ${PROJECT_NAME}_db
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=oro
+      - MYSQL_USER=oro
+      - MYSQL_PASSWORD=oro
+    ports:
+      - "3306:3306"
+    networks:
+      custom_network: {}
+
+  adminer:
+    image: adminer:latest
+    container_name: ${PROJECT_NAME}_adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      custom_network: { }
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: ${PROJECT_NAME}_mailhog
+    ports:
+      - "1080:8025"
+      - "2500:1025"
+    networks:
+      custom_network: {}
+
+#  rabbitmq:
+#    build: ./.docker/rabbitmq
+#    container_name: ${PROJECT_NAME}_rmq
+#    ports:
+#      - 5672:5672
+#      - 15672:15672
+#    volumes:
+#      - rabbitmq-data:/var/lib/rabbitmq
+#      - rabbitmq-log:/var/log/rabbitmq
+#    networks:
+#      custom_network: {}
+
+volumes:
+  rabbitmq-data:
+  rabbitmq-log:
+    driver: local
+networks:
+  custom_network:
+    name: ${PROJECT_NAME}

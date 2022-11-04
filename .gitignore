@@ -1,0 +1,6 @@
+.vscode/
+.idea/
+www/
+!www/.gitkeep
+data/
+!data/.gitkeep
